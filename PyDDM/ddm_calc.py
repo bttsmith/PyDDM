@@ -200,7 +200,6 @@ def _new_ddm_matrix(imageArray):
     inverse_fft_in_times = np.fft.ifftn(new_matrix, axes=(0,))
     return np.real(inverse_fft_in_times)
 
-
 def computeDDMMatrix(imageArray, dts, use_BH_windowing=False, quiet=False,
                      overlap_method=2, **kwargs):
     r'''Calculates DDM matrix
@@ -1364,15 +1363,19 @@ def micrheo(tau, msd, a, width = 0.7, dim = 3, T=290, clip = 0.03):
         Mean Square Displacement in microns^2
     tau : ndarray
         Lag time in seconds
+    width : float
+        Default is 0.7. Width of a gaussian used in a smoothing operation.
     T : float
         Default is 290. Temperature in Kelvin.
-    dim : int
+    dim : float
         Default is 3. The dimensionality 'dim' of 'msd'.
+    clip : float
+        Default in 0.03. Data below 0.03x G(w) are almost certainly meaningless.
         
    	Returns
     -------
     omega : ndarray
-        Frequency in s^{-1}
+        Frequency in rad/s^{-1}
     Gs : ndarray
         G(s) in Pascals
     Gp : ndarray
