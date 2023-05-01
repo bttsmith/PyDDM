@@ -248,8 +248,6 @@ def computeDDMMatrix(imageArray, dts, use_BH_windowing=False, quiet=False,
     #Applies the Blackman-Harris window if desired
     if use_BH_windowing:
         filterfunction = window_function(imageArray)
-    else:
-        filterfunction = np.ones_like(imageArray[0])
 
     #Determines the dimensions of the data set (number of frames, x- and y-resolution in pixels
     ntimes, ndx, ndy = imageArray.shape
@@ -282,8 +280,11 @@ def computeDDMMatrix(imageArray, dts, use_BH_windowing=False, quiet=False,
                 logger.info("Running dt = %i..." % dt)
 
         #Calculates all differences of images with a delay time dt
-        all_diffs = filterfunction*(imageArray[dt:].astype(np.float) - imageArray[0:(-1*dt)].astype(np.float))
-
+        all_diffs = (imageArray[dt:] - imageArray[0:(-1*dt)]).astype(float)
+        if use_BH_windowing:
+            all_diffs = filterfunction*all_diffs
+        
+        
         #Rather than FT all image differences of a given lag time, only select a subset
         all_diffs_new = all_diffs[0::steps_in_diffs[k],:,:]
 
