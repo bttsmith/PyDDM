@@ -243,8 +243,7 @@ class DDM_Analysis:
         # The YAML data *MUST* include the paramters 'DataDirectory' and 'FileName'
         self.data_dir=self.content['DataDirectory']
         self.filename= self.content['FileName']
-        
-
+                
         #Make sure the path to the movie exists before proceeding
         if os.path.exists(self.data_dir+self.filename):
             #print('File path to image data exists.')
@@ -261,8 +260,8 @@ class DDM_Analysis:
                 print("Image metadata not provided!!! Setting `pixel_size` and `frame_rate` to 1.")
                 self.pixel_size = 1
                 self.frame_rate = 1
-                
             self.analysis_parameters = self.content['Analysis_parameters']
+                    
             if 'filename_for_saved_data' in self.analysis_parameters:
                 self.filename_for_saving_data = self.analysis_parameters['filename_for_saved_data']
             else:
@@ -1892,6 +1891,85 @@ class DDM_Fit:
         fit['msd_std'] = msd_std
         return msd, msd_std
 
+
+
+    def rheo_Mods(self, a, fit = None, tau = None, msd = None, 
+                  width = 0.7, dim = 3, T=290, clip = 0.03):       
+        r"""Rheological Moduli from MSD using Mason-Weitz micro-rheology
+        
+        Uses function 'micrheo' from 'ddm_calc.py'.
+        Look at documentation there for more details on method.
+
+        Parameters
+        ----------
+        a : float
+            The radius of the embedded tracker particles, in microns.
+        fit : TYPE, optional
+            Fit object which contains msd. 
+            The default is None, which loads from the DDM_Fit object.
+        tau : ndarray, optional
+            Lag time in seconds. 
+            The default is None, which loads from the DDM_Fit object.
+        msd : ndarray, optional
+            Mean Square Displacement in microns^2.
+            The default is None, which loads from the DDM_Fit object.
+        width : TYPE, optional
+            Width of a gaussian used in a smoothing operation.
+            The default is 0.7.
+        dim : int, optional
+            The dimensionality 'dim' of 'msd'. The default is 3.
+        T : float, optional
+            Temperature in K. The default is 290.
+        clip : float, optional
+            Data below 0.03x G(w) are almost certainly meaningless, and so 
+            are discarded. The default is 0.03.
+
+
+       	Returns
+        -------
+        omega : ndarray
+            Frequency in rad/s^{-1}
+        Gs : ndarray
+            G(s) in Pascals
+        Gp : ndarray
+            G'(w) in Pascals
+        Gpp : ndarray
+            G''(w) in Pascals
+        
+        """      
+        
+        #ToDo: incorporate this data into fit variable/YAML file
+        
+        if fit == None:
+            fit_keys = list(self.fittings)
+            fit = self.fittings[fit_keys[-1]]['fit'] #gets the latest fit
+        
+        
+        if (tau == None):
+            try:
+                fit_msd = fit['msd']
+                
+            except:
+                fit_msd = extract_MSD()
+        
+            tau = np.array(fit_msd.lagtime)
+        
+        if (msd == None):
+            try:
+                fit_msd = fit['msd']
+                
+            except:
+                fit_msd = extract_MSD()
+        
+            msd = np.array(fit_msd)
+            
+            
+        omega, Gs, Gp, Gpp = ddm.micrheo(tau, msd, a, width = 0.7, dim = 3, T=290, clip = 0.03)
+        
+        return omega, Gs, Gp, Gpp
+    
+    
+    
 
     def error_in_fit(self, fit=None, q_index=10, show_plot=True,
                      show_error_vs_q=False, use_isf=True):
