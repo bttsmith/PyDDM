@@ -412,7 +412,7 @@ class DDM_Analysis:
                     scale_factor = 1
                 
                 print('\t%d x %d px' % (x, y))
-                print('\tPixel size of: %.2f microns' % lif_img.scale_n['X'])
+                print('\tPixel size of: %.2f microns' % (1.0/lif_img.scale_n['X']))
                 print('\tNumber of frames: %i' % t)
                                 
                 start_frame = self.first_frame
