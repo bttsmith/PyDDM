@@ -40,6 +40,13 @@ try:
 except ModuleNotFoundError:
     print("imageio not installed.")
     able_to_open_mp4 = False
+    
+try:
+    from readlif.reader import LifFile
+    able_to_open_lif = True
+except ModuleNotFoundError:
+    print('readlif not installed')
+    able_to_open_lif = False
 
 
 import fit_parameters_dictionaries as fpd
@@ -192,6 +199,7 @@ class DDM_Analysis:
         self.number_of_lag_times = None
         
         self.loaded_mp4 = False #if loading mp4, image data handled a bit differently 
+        self.loaded_lif = False #Lif loading also handled a bit differently?
         
         if (isinstance(data_yaml, str)) or (isinstance(data_yaml, dict)):
             self.data_yaml=data_yaml
@@ -388,6 +396,52 @@ class DDM_Analysis:
                 print("It seems you have an nd2 file to open. But nd2reader not installed!")
                 return 
 
+         if re.search(".\.lif$", self.filename) is not None:
+            if able_to_open_lif:
+                # Files with lif extension will be read using the package
+                #  readlif. Leica systems may save data with this file type.
+                if self.channel is None:
+                    print("Need to specify channel/series in yaml metadata. Defaulting to c=0.")
+                    self.channel = 0
+                    
+                lif_img = LifFile(self.data_dir+self.filename).get_image(self.channel)
+                (x, y, z, t, m) = lif_img.dims
+                
+                scale_factor = (16 - lif_img.bit_depth[0]) ** 2
+                if scale_factor == 0:
+                    scale_factor = 1
+                
+                print('\t%d x %d px' % (x, y))
+                print('\tPixel size of: %.2f microns' % lif_img.scale_n['X'])
+                print('\tNumber of frames: %i' % t)
+                                
+                start_frame = self.first_frame
+                if self.last_frame == None:
+                    end_frame = t
+                else:
+                    end_frame = self.last_frame
+
+                y1 = 0
+                x1 = 0
+                y2 = y
+                x2 = x
+
+                if 'crop_to_roi' in self.analysis_parameters:
+                    if self.analysis_parameters['crop_to_roi'] is not None:
+                        if len(self.analysis_parameters['crop_to_roi'])==4:
+                            [y1,y2,x1,x2] = self.analysis_parameters['crop_to_roi']
+
+
+                im = np.zeros(((end_frame-start_frame), x2-x1, y2-y1), dtype=np.uint16)
+                
+                for i in range(start_frame, end_frame):
+                    im[i-start_frame] = lif_img.get_frame(z = 0, t = i, c = 0)[y1:y2, x1:x2]*scale_factor
+                self.loaded_lif = True
+                self.image_for_report = lif_img.get_frame(z=0, t=start_frame, c=0)
+            else:
+                print("It seems you have an lif file to open. But readlif not installed!")
+                return 
+
         if (re.search(".\.tif$", self.filename) is not None) or (re.search(".\.tiff$", self.filename) is not None):
             im = io.imread(self.data_dir + self.filename)
             
@@ -400,6 +454,7 @@ class DDM_Analysis:
             else:
                 print("dcimg not loaded...")
                 return
+            
             
         if (re.search(".\.mp4$", self.filename) is not None):
             if able_to_open_mp4:
@@ -455,6 +510,14 @@ class DDM_Analysis:
                 self.image_for_report = self.im[0]
                 self.pixel_size = self.pixel_size*self.binsize
                 return
+            
+            #Lif files do work beforehand like mp4s
+            #still need to implement binning, 4rois
+            if self.loaded_lif: #Lif only loads needed frames
+                self.im=image_data
+                print("Loaded lif file.")
+                return
+            
     
             #crops the number of frames based on given max frame numbers
             if self.last_frame is None:
@@ -683,8 +746,9 @@ class DDM_Analysis:
                                                                                   number_differences_max=self.num_dif_max)
     
                 end_time = time.time()
-            except:
-                print("Unable to get DDM matrix.")
+            except Exception as e:
+                print("Unable to get DDM matrix!")
+                print(e)
                 return False
 
         print("DDM matrix took %s seconds to compute." % (end_time - start_time))
