@@ -396,7 +396,7 @@ class DDM_Analysis:
                 print("It seems you have an nd2 file to open. But nd2reader not installed!")
                 return 
 
-         if re.search(".\.lif$", self.filename) is not None:
+        if re.search(".\.lif$", self.filename) is not None:
             if able_to_open_lif:
                 # Files with lif extension will be read using the package
                 #  readlif. Leica systems may save data with this file type.
