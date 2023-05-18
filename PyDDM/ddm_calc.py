@@ -25,8 +25,6 @@ import skimage
 import fit_parameters_dictionaries as fpd
 import logging
 from IPython.core.display import clear_output
-from numpy.polynomial import Polynomial
-
 
 class IPythonStreamHandler(logging.StreamHandler):
     "A StreamHandler for logging that clears output between entries."
@@ -280,11 +278,10 @@ def computeDDMMatrix(imageArray, dts, use_BH_windowing=False, quiet=False,
                 logger.info("Running dt = %i..." % dt)
 
         #Calculates all differences of images with a delay time dt
-        all_diffs = (imageArray[dt:] - imageArray[0:(-1*dt)]).astype(float)
+        all_diffs = (imageArray[dt:] - imageArray[0:(-1*dt)].astype(float))
         if use_BH_windowing:
             all_diffs = filterfunction*all_diffs
-        
-        
+
         #Rather than FT all image differences of a given lag time, only select a subset
         all_diffs_new = all_diffs[0::steps_in_diffs[k],:,:]
 
@@ -1074,9 +1071,9 @@ def find_radial_average(im, mask=None, centralAngle=None, angRange=None,
         mask = np.ones_like(im)
         
     if remove_vert_line:
-        im[:,int(ny/2)]=0
+        mask[:,int(ny/2)]=0
     if remove_hor_line:
-        im[int(nx/2),:]=0
+        mask[int(nx/2),:]=0
 
     #dists = np.sqrt(np.fft.fftfreq(shape[0])[:,None]**2 +  np.fft.fftfreq(shape[1])[None,:]**2)
 
@@ -1087,8 +1084,8 @@ def find_radial_average(im, mask=None, centralAngle=None, angRange=None,
     #dists[:,0] = 0
 
     bins = np.arange(max(nx,ny)/2+1)
-    histo_of_bins = np.histogram(dists, bins)[0]
-    h = np.histogram(dists, bins, weights=im*mask)[0]
+    histo_of_bins = np.histogram(dists[mask==1], bins)[0]
+    h = np.histogram(dists[mask==1], bins, weights=im[mask==1])[0]
     return h/histo_of_bins
 
 
@@ -1131,8 +1128,8 @@ def radial_avg_ddm_matrix(ddm_matrix, mask=None,
     nx,ny = ddm_matrix[0].shape
     dists = np.sqrt(np.arange(-1*nx/2, nx/2)[:,None]**2 + np.arange(-1*ny/2, ny/2)[None,:]**2)
 
-    bins = np.arange(max(nx,ny)/2+1) - 0.5
-    histo_of_bins = np.histogram(dists, bins)[0]
+    bins = np.arange(max(nx,ny)/2+1) #- 0.5 #2023-05-04: remove the "-0.5"
+    
 
     if (centralAngle!=None) and (angRange!=None) and (mask==None):
         mask = generate_mask(ddm_matrix[0], centralAngle, angRange)
@@ -1141,21 +1138,20 @@ def radial_avg_ddm_matrix(ddm_matrix, mask=None,
 
     array_to_radial_avg = ddm_matrix[0].copy()
     if remove_vert_line:
-        array_to_radial_avg[:,int(ny/2)]=0
+        mask[:,int(ny/2)]=0
     if remove_hor_line:
-        array_to_radial_avg[int(nx/2),:]=0
-    h = np.histogram(dists, bins, weights=mask*array_to_radial_avg)[0]
+        mask[int(nx/2),:]=0
+        
+    histo_of_bins = np.histogram(dists[mask==1], bins)[0]    
+    
+    h = np.histogram(dists[mask==1], bins, weights=array_to_radial_avg[mask==1])[0]
 
     ravs = np.zeros((ddm_matrix.shape[0], len(h)))
     ravs[0] = h/histo_of_bins
 
     for i in range(1,ddm_matrix.shape[0]):
         array_to_radial_avg = ddm_matrix[i].copy()
-        if remove_vert_line:
-            array_to_radial_avg[:,int(ny/2)]=0
-        if remove_hor_line:
-            array_to_radial_avg[int(nx/2),:]=0
-        h = np.histogram(dists, bins, weights=mask*array_to_radial_avg)[0]
+        h = np.histogram(dists[mask==1], bins, weights=array_to_radial_avg[mask==1])[0]
         ravs[i] = h/histo_of_bins
     return ravs
 
@@ -1315,9 +1311,6 @@ def getVel_phiDM(phase, dt, pixel_size, framerate, halfsize=5):
         vxs[i] = pfitx[0]/(dt/framerate)
         
     return vxs, vys, errs
-
-
-
 
 def logderiv(x_arr, y_arr, width):
     r'''
