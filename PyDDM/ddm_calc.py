@@ -1336,7 +1336,7 @@ def logderiv(x_arr, y_arr, width):
         #assumes that the high values of w are always at the front of the array,
         #and so crops away those values as follows
         w_crop = len(w)-len(ww)
-        res = Polynomial.fit(lx[w_crop:], ly[w_crop:], 2, w=w[w_crop:]).convert().coef         
+        res = np.polynomial.Polynomial.fit(lx[w_crop:], ly[w_crop:], 2, w=w[w_crop:]).convert().coef         
         y2[i] = np.exp(res[0]+res[1]*lx[i]+res[2]*(lx[i]**2))
         dy[i] = res[1]+2.*res[2]*lx[i]
         ddy[i] = 2.*res[2]
