@@ -829,13 +829,13 @@ class DDM_Analysis:
             ddm_matrix = self.ddm_matrix[num]
             ravfft = self.ravfft[num]
             ravs = self.ravs[num]
-            image0 = self.im[num][0].astype(np.float64)
+            image0 = self.im[num][0].astype(np.float)
             AF = self.AF[num]
         else:
             ddm_matrix = self.ddm_matrix
             ravfft = self.ravfft
             ravs = self.ravs
-            image0 = self.im[0].astype(np.float64)
+            image0 = self.im[0].astype(np.float)
             AF = self.AF
 
         #Put ddm_matrix and radial averages in a dataset:
