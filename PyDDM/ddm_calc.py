@@ -259,15 +259,9 @@ def computeDDMMatrix(imageArray, dts, use_BH_windowing=False, quiet=False,
         steps_in_diffs = dts
     elif overlap_method == 1:
         num_possible_diffs = ntimes - dts
-<<<<<<< Updated upstream
         steps_in_diffs = np.ceil(num_possible_diffs / num_dif_max).astype(np.int64)
     elif overlap_method == 2:
         steps_in_diffs = np.ceil(dts/3.0).astype(np.int64)
-=======
-        steps_in_diffs = np.ceil(num_possible_diffs / num_dif_max).astype(int)
-    elif overlap_method == 2:
-        steps_in_diffs = np.ceil(dts/3.0).astype(int)
->>>>>>> Stashed changes
     elif overlap_method == 3:
         steps_in_diffs = np.ones_like(dts)
 
@@ -384,15 +378,9 @@ def computeDDMMatrix_correctVelocityPhase(imageArray, dts, velocity, pixel_size,
         steps_in_diffs = dts
     elif overlap_method == 1:
         num_possible_diffs = ntimes - dts
-<<<<<<< Updated upstream
         steps_in_diffs = np.ceil(num_possible_diffs / num_dif_max).astype(np.int64)
     elif overlap_method == 2:
         steps_in_diffs = np.ceil(dts/3.0).astype(np.int64)
-=======
-        steps_in_diffs = np.ceil(num_possible_diffs / num_dif_max).astype(int)
-    elif overlap_method == 2:
-        steps_in_diffs = np.ceil(dts/3.0).astype(int)
->>>>>>> Stashed changes
     elif overlap_method == 3:
         steps_in_diffs = np.ones_like(dts)
 
@@ -532,11 +520,7 @@ def temporalVarianceDDMMatrix(imageArray, dt, use_BH_windowing=False, quiet=Fals
     #If we don't correct for phase with phDM
     else:
         #Calculates all differences of images with a delay time dt
-<<<<<<< Updated upstream
         all_diffs = filterfunction*(imageArray[dt:].astype(np.float64) - imageArray[0:(-1*dt)].astype(np.float64))
-=======
-        all_diffs = filterfunction*(imageArray[dt:].astype(float) - imageArray[0:(-1*dt)].astype(float))
->>>>>>> Stashed changes
     
         #Loop through each image difference and take the fourier transform
         for i in range(0,all_diffs.shape[0]):
