@@ -40,14 +40,12 @@ try:
 except ModuleNotFoundError:
     print("imageio not installed.")
     able_to_open_mp4 = False
-    
 try:
     from readlif.reader import LifFile
     able_to_open_lif = True
 except ModuleNotFoundError:
-    print('readlif not installed')
+    print("readlif module not found. Reading of .lif files is disabled")
     able_to_open_lif = False
-
 
 import fit_parameters_dictionaries as fpd
 import utils as hf #used to be called 'helper functions'
@@ -199,7 +197,6 @@ class DDM_Analysis:
         self.number_of_lag_times = None
         
         self.loaded_mp4 = False #if loading mp4, image data handled a bit differently 
-        self.loaded_lif = False #Lif loading also handled a bit differently?
         
         if (isinstance(data_yaml, str)) or (isinstance(data_yaml, dict)):
             self.data_yaml=data_yaml
@@ -396,51 +393,27 @@ class DDM_Analysis:
                 print("It seems you have an nd2 file to open. But nd2reader not installed!")
                 return 
 
-        if re.search(".\.lif$", self.filename) is not None:
+        if re.search(".\.lif", self.filename) is not None:
             if able_to_open_lif:
-                # Files with lif extension will be read using the package
-                #  readlif. Leica systems may save data with this file type.
+                #Files with lif extension will be read using the package
+                #readlif. Leica microscopes use this format
                 if self.channel is None:
-                    print("Need to specify channel/series in yaml metadata. Defaulting to c=0.")
+                    print('Need to specify channel in yaml metadata. Defaulting to c=0.')
                     self.channel = 0
                     
-                lif_img = LifFile(self.data_dir+self.filename).get_image(self.channel)
-                (x, y, z, t, m) = lif_img.dims
+                image = LifFile(self.data_dir+self.filename).get_image(self.channel)
+                # Metadata in lif file should have pixel size and other information.
+                #   However, data provided by user in yaml file will be used.
+                print('According to lif file:')
+                print('\t%d x %d px' % (image.dims.x, image.dims.y))
+                print('\tPixel size of: %0.2f microns' % 1/image.scale_n['X'])
+                print('\tNumber of frames: %i' % image.dims.t)
                 
-                scale_factor = (16 - lif_img.bit_depth[0]) ** 2
-                if scale_factor == 0:
-                    scale_factor = 1
-                
-                print('\t%d x %d px' % (x, y))
-                print('\tPixel size of: %.2f microns' % (1.0/lif_img.scale_n['X']))
-                print('\tNumber of frames: %i' % t)
-                                
-                start_frame = self.first_frame
-                if self.last_frame == None:
-                    end_frame = t
-                else:
-                    end_frame = self.last_frame
-
-                y1 = 0
-                x1 = 0
-                y2 = y
-                x2 = x
-
-                if 'crop_to_roi' in self.analysis_parameters:
-                    if self.analysis_parameters['crop_to_roi'] is not None:
-                        if len(self.analysis_parameters['crop_to_roi'])==4:
-                            [y1,y2,x1,x2] = self.analysis_parameters['crop_to_roi']
-
-
-                im = np.zeros(((end_frame-start_frame), x2-x1, y2-y1), dtype=np.uint16)
-                
-                for i in range(start_frame, end_frame):
-                    im[i-start_frame] = lif_img.get_frame(z = 0, t = i, c = 0)[y1:y2, x1:x2]*scale_factor
-                self.loaded_lif = True
-                self.image_for_report = lif_img.get_frame(z=0, t=start_frame, c=0)
+                im = np.zeros((image.dims.t, image.dims.x, image.dims.y), dtype = np.uint16)
+                for frame in image.get_iter_t(c=self.channel):
+                    im[i] = frame
             else:
-                print("It seems you have an lif file to open. But readlif not installed!")
-                return 
+                print("It seems you have a lif file to open, but lifreader is not installed!")
 
         if (re.search(".\.tif$", self.filename) is not None) or (re.search(".\.tiff$", self.filename) is not None):
             im = io.imread(self.data_dir + self.filename)
@@ -454,7 +427,6 @@ class DDM_Analysis:
             else:
                 print("dcimg not loaded...")
                 return
-            
             
         if (re.search(".\.mp4$", self.filename) is not None):
             if able_to_open_mp4:
@@ -510,14 +482,6 @@ class DDM_Analysis:
                 self.image_for_report = self.im[0]
                 self.pixel_size = self.pixel_size*self.binsize
                 return
-            
-            #Lif files do work beforehand like mp4s
-            #still need to implement binning, 4rois
-            if self.loaded_lif: #Lif only loads needed frames
-                self.im=image_data
-                print("Loaded lif file.")
-                return
-            
     
             #crops the number of frames based on given max frame numbers
             if self.last_frame is None:
@@ -746,9 +710,8 @@ class DDM_Analysis:
                                                                                   number_differences_max=self.num_dif_max)
     
                 end_time = time.time()
-            except Exception as e:
-                print("Unable to get DDM matrix!")
-                print(e)
+            except:
+                print("Unable to get DDM matrix.")
                 return False
 
         print("DDM matrix took %s seconds to compute." % (end_time - start_time))
@@ -829,13 +792,13 @@ class DDM_Analysis:
             ddm_matrix = self.ddm_matrix[num]
             ravfft = self.ravfft[num]
             ravs = self.ravs[num]
-            image0 = self.im[num][0].astype(float)
+            image0 = self.im[num][0].astype(np.float64)
             AF = self.AF[num]
         else:
             ddm_matrix = self.ddm_matrix
             ravfft = self.ravfft
             ravs = self.ravs
-            image0 = self.im[0].astype(float)
+            image0 = self.im[0].astype(np.float64)
             AF = self.AF
 
         #Put ddm_matrix and radial averages in a dataset:
@@ -2700,6 +2663,7 @@ class Browse_DDM_Fits:
         self.theory = fit.theory.values
         self.q = fit.q.values
         self.t = fit.parameters.loc['Tau'].values
+        self.b = fit.parameters.loc['StretchingExp'].values
         
         self.ax.set_title('Decay time vs wavevector')
         self.ax.set_xlabel("q ($\mu$m$^{-2}$)")
@@ -2717,9 +2681,9 @@ class Browse_DDM_Fits:
     def on_press(self, event):
         if self.lastind is None:
             return
-        if event.key not in ('n', 'p'):
+        if event.key not in ('n', 'p', 'left', 'right'):
             return
-        if event.key == 'n':
+        if event.key in ('n', 'right'):
             inc = 1
         else:
             inc = -1
@@ -2759,9 +2723,17 @@ class Browse_DDM_Fits:
         self.ax2.semilogx(self.lagtimes,self.theory[:,dataind],'-b')
         self.ax2.set_xlabel("Lag time (s)")
 
-        self.ax2.text(0.05, 0.9, f'q={self.q[dataind]:1.3f}',
+        self.ax2.text(0.05, 0.95, f'q={self.q[dataind]:1.3f}',
                  transform=self.ax2.transAxes, va='top')
+        
+        self.ax2.text(0.05, 0.85, r'$\tau$' + f'={self.t[dataind]:1.3f}',
+                 transform=self.ax2.transAxes, va='top')         
+        self.ax2.text(0.05, 0.75, r'$\beta$='+ f'{self.b[dataind]:1.3f}',
+                 transform=self.ax2.transAxes, va='top')         
         #ax2.set_ylim(-0.5, 1.5)
+        
+        
+        
         self.selected.set_visible(True)
         self.selected.set_data(self.q[dataind], self.t[dataind])
 
